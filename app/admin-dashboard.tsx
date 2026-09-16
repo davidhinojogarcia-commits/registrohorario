@@ -1,25 +1,65 @@
 "use client";
 
-import { useState } from "react";
-import { Building2, Check, Clock3, Copy, HardHat, Link2, Loader2, LockKeyhole, ShieldCheck, Smartphone, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Building2, Check, Clock3, Coffee, Copy, HardHat, Link2, Loader2, MapPin, RefreshCw, ShieldCheck, Smartphone, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Setup = { company: { name: string }; worker: { name: string }; invitationUrl: string; expiresAt: string };
+type WorkerState = "working" | "paused" | "finished" | "idle";
+type Worker = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  worksite_name: string | null;
+  event_type: "entry" | "pause" | "resume" | "exit" | null;
+  occurred_at: string | null;
+  state: WorkerState;
+};
+type Overview = {
+  company: { id: string; name: string } | null;
+  workers: Worker[];
+  totals: Record<WorkerState, number>;
+};
+
+const stateLabel: Record<WorkerState, string> = {
+  working: "Trabajando",
+  paused: "En pausa",
+  finished: "Jornada finalizada",
+  idle: "Sin fichar",
+};
 
 export function AdminDashboard({ displayName }: { displayName: string }) {
   const [setup, setSetup] = useState<Setup | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(false);
+  const [overviewLoading, setOverviewLoading] = useState(true);
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
+
+  const loadOverview = useCallback(async () => {
+    setOverviewLoading(true);
+    const response = await fetch("/api/admin/overview", { cache: "no-store" });
+    const data = await response.json() as Overview & { error?: string };
+    if (!response.ok) setError(data.error ?? "No se pudo cargar el resumen.");
+    else { setOverview(data); setError(""); }
+    setOverviewLoading(false);
+  }, []);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void loadOverview(), 0);
+    const timer = window.setInterval(() => void loadOverview(), 60_000);
+    return () => { window.clearTimeout(initial); window.clearInterval(timer); };
+  }, [loadOverview]);
 
   async function prepareAccess() {
     setLoading(true); setError("");
     const response = await fetch("/api/admin/bootstrap", { method: "POST" });
     const data = await response.json() as Setup & { error?: string };
     if (!response.ok) setError(data.error ?? "No se pudo preparar el acceso.");
-    else setSetup(data);
+    else { setSetup(data); await loadOverview(); }
     setLoading(false);
   }
 
@@ -29,16 +69,41 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
     setCopied(true); window.setTimeout(() => setCopied(false), 1800);
   }
 
-  return <main className="min-h-screen bg-background text-foreground">
-    <header className="border-b border-white/10 bg-[#102033] text-white"><div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6"><div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-xl bg-[#f6b718] text-[#102033]"><HardHat className="size-5" /></span><div><p className="font-bold leading-tight">Control de obra</p><p className="text-xs text-slate-300">Panel de empresa</p></div></div><Badge className="border border-emerald-400/20 bg-emerald-400/10 text-emerald-200">Plan sin coste</Badge></div></header>
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10"><div className="grid gap-6 lg:grid-cols-[1.25fr_.75fr]">
-      <section><p className="text-sm font-medium text-[#a76f00] dark:text-[#f6b718]">Primera configuración</p><h1 className="mt-2 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">Acceso móvil seguro para tus trabajadores</h1><p className="mt-3 max-w-2xl leading-relaxed text-muted-foreground">Hola, {displayName}. La base de datos de esta aplicación está separada de Profea y no necesita contratar Supabase.</p>
-        <div className="mt-7 grid gap-3 sm:grid-cols-3">{[{ icon: Building2, title: "Empresa separada", text: "Datos propios de esta app." }, { icon: LockKeyhole, title: "Invitación segura", text: "Enlace temporal y PIN." }, { icon: Smartphone, title: "Desde el móvil", text: "Entrada, pausa y salida." }].map((item) => <Card key={item.title} className="gap-3 border-slate-200 py-5 shadow-none dark:border-slate-800"><CardContent className="px-5"><item.icon className="size-5 text-[#a76f00] dark:text-[#f6b718]" /><p className="mt-4 font-semibold">{item.title}</p><p className="mt-1 text-sm text-muted-foreground">{item.text}</p></CardContent></Card>)}</div>
-        <Card className="mt-6 border-slate-200 shadow-none dark:border-slate-800"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5" /> Acceso de prueba</CardTitle><CardDescription>Crea una empresa, una obra y un trabajador ficticios para probar el recorrido completo.</CardDescription></CardHeader><CardContent>
-          {!setup ? <div><Button onClick={prepareAccess} disabled={loading} className="h-12 bg-[#102033] px-5 text-white hover:bg-[#1a334f]">{loading ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Preparar acceso gratuito</Button>{error && <p className="mt-3 text-sm text-red-600">{error}</p>}</div> : <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40"><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-600 text-white"><Check className="size-5" /></span><div><p className="font-semibold">Invitación preparada</p><p className="text-sm text-muted-foreground">{setup.worker.name} · válida hasta {new Date(setup.expiresAt).toLocaleDateString("es-ES")}</p></div></div><div className="mt-4 flex flex-col gap-2 sm:flex-row"><div className="min-w-0 flex-1 truncate rounded-xl border bg-white px-4 py-3 text-sm dark:bg-slate-950">{setup.invitationUrl}</div><Button onClick={copyLink} variant="outline" className="h-11">{copied ? <Check /> : <Copy />} {copied ? "Copiado" : "Copiar enlace"}</Button></div><p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><Link2 className="size-3.5" /> El trabajador establecerá un PIN personal de 6 cifras.</p></div>}
-        </CardContent></Card>
+  const activeNow = useMemo(() => (overview?.totals.working ?? 0) + (overview?.totals.paused ?? 0), [overview]);
+
+  return <main className="min-h-screen bg-slate-50 text-foreground dark:bg-slate-950">
+    <header className="border-b border-white/10 bg-[#102033] text-white"><div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6"><div className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f6b718] text-[#102033]"><HardHat className="size-5" /></span><div className="min-w-0"><p className="truncate font-bold leading-tight">Control de obra</p><p className="truncate text-xs text-slate-300">Hola, {displayName}</p></div></div><Button onClick={() => void loadOverview()} variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-white"><RefreshCw className={overviewLoading ? "animate-spin" : ""} /><span className="hidden sm:inline">Actualizar</span></Button></div></header>
+
+    <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+      <section className="rounded-[28px] bg-[#102033] p-5 text-white shadow-[0_24px_70px_rgba(15,32,51,.18)] sm:p-7">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm text-slate-300">Resumen de hoy</p><h1 className="mt-1 text-3xl font-bold tracking-tight">{overview?.company?.name ?? "Tu empresa"}</h1><p className="mt-2 text-sm text-slate-300">{new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</p></div><Badge className="w-fit border border-emerald-400/20 bg-emerald-400/10 text-emerald-200">{activeNow} activos ahora</Badge></div>
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ["Trabajando", overview?.totals.working ?? 0, "bg-emerald-400"],
+            ["En pausa", overview?.totals.paused ?? 0, "bg-amber-400"],
+            ["Finalizados", overview?.totals.finished ?? 0, "bg-sky-400"],
+            ["Sin fichar", overview?.totals.idle ?? 0, "bg-slate-400"],
+          ].map(([label, value, dot]) => <div key={String(label)} className="rounded-2xl border border-white/10 bg-white/[.06] p-4"><div className="flex items-center gap-2 text-xs text-slate-300"><span className={`size-2 rounded-full ${dot}`} />{label}</div><p className="mt-2 text-3xl font-bold">{value}</p></div>)}
+        </div>
       </section>
-      <aside className="rounded-[28px] bg-[#102033] p-6 text-white shadow-[0_24px_70px_rgba(15,32,51,.18)] sm:p-7"><div className="flex items-center justify-between"><p className="font-semibold">Versión gratuita</p><Clock3 className="size-5 text-[#f6b718]" /></div><p className="mt-2 text-sm leading-relaxed text-slate-300">La primera versión utiliza el alojamiento y la base de datos incluidos. No activa SMS, WhatsApp, mapas de pago ni reconocimiento biométrico.</p><div className="mt-6 space-y-4">{["Hora obtenida del servidor", "Eventos originales inmutables", "Protección contra doble marcaje", "Historial con huella de integridad", "Sesión del trabajador protegida"].map((label) => <div key={label} className="flex gap-3 text-sm"><span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-[#f6b718] text-[#102033]"><Check className="size-3.5" /></span>{label}</div>)}</div><div className="mt-7 rounded-2xl border border-amber-300/20 bg-amber-300/10 p-4 text-sm leading-relaxed text-amber-100">La aplicación permanece privada durante las pruebas. Se hará accesible a los trabajadores únicamente cuando el acceso por PIN esté validado.</div></aside>
-    </div></div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_.7fr]">
+        <section className="space-y-4">
+          <Card className="border-slate-200 shadow-none dark:border-slate-800"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5" /> Personal de hoy</CardTitle><CardDescription>Estado actual de cada trabajador. Se actualiza automáticamente cada minuto.</CardDescription></CardHeader><CardContent>
+            {overviewLoading && !overview ? <div className="grid min-h-40 place-items-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : overview?.workers.length ? <div className="space-y-2">{overview.workers.map((worker) => <div key={worker.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><span className={`size-3 shrink-0 rounded-full ${worker.state === "working" ? "bg-emerald-500" : worker.state === "paused" ? "bg-amber-400" : worker.state === "finished" ? "bg-sky-400" : "bg-slate-300"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-x-2"><p className="truncate font-semibold">{worker.first_name} {worker.last_name}</p><span className="text-xs text-muted-foreground">{worker.role}</span></div><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{stateLabel[worker.state]}</span>{worker.worksite_name && <span className="flex items-center gap-1"><MapPin className="size-3" />{worker.worksite_name}</span>}{worker.occurred_at && <span>Último fichaje {new Date(worker.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>}</div></div></div>)}</div> : <div className="rounded-2xl border border-dashed p-6 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-medium">Aún no hay trabajadores</p><p className="mt-1 text-sm text-muted-foreground">Prepara el primer acceso para crear el entorno inicial.</p></div>}
+          </CardContent></Card>
+        </section>
+
+        <aside className="space-y-4">
+          <Card className="border-slate-200 shadow-none dark:border-slate-800"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Smartphone className="size-4" /> Acceso de trabajador</CardTitle><CardDescription>Genera una invitación temporal para activar el móvil con PIN.</CardDescription></CardHeader><CardContent>
+            {!setup ? <Button onClick={prepareAccess} disabled={loading} className="h-12 w-full bg-[#102033] text-white hover:bg-[#1a334f]">{loading ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Preparar acceso</Button> : <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40"><div className="flex items-start gap-3"><span className="grid size-9 shrink-0 place-items-center rounded-full bg-emerald-600 text-white"><Check className="size-5" /></span><div><p className="font-semibold">Invitación preparada</p><p className="text-sm text-muted-foreground">{setup.worker.name}</p></div></div><Button onClick={copyLink} variant="outline" className="mt-4 h-11 w-full">{copied ? <Check /> : <Copy />} {copied ? "Copiado" : "Copiar enlace"}</Button><p className="mt-3 flex items-center gap-2 text-xs text-muted-foreground"><Link2 className="size-3.5" /> Válida hasta {new Date(setup.expiresAt).toLocaleDateString("es-ES")}</p></div>}
+          </CardContent></Card>
+
+          <Card className="border-slate-200 shadow-none dark:border-slate-800"><CardHeader><CardTitle className="flex items-center gap-2 text-base"><Building2 className="size-4" /> Control pensado para obra</CardTitle></CardHeader><CardContent className="space-y-3 text-sm text-muted-foreground"><p className="flex gap-2"><Clock3 className="mt-0.5 size-4 shrink-0" />Hora obtenida del servidor.</p><p className="flex gap-2"><Coffee className="mt-0.5 size-4 shrink-0" />Entrada, pausa, reanudación y salida.</p><p className="flex gap-2"><MapPin className="mt-0.5 size-4 shrink-0" />GPS solo en el momento del fichaje.</p></CardContent></Card>
+        </aside>
+      </div>
+
+      {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
+    </div>
   </main>;
 }
