@@ -1,5 +1,24 @@
 import { boolean, index, pgTable, text, timestamp, uniqueIndex, integer } from "drizzle-orm/pg-core";
 
+export const supervisors = pgTable("supervisors", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  name: text("name").notNull(),
+  passwordHash: text("password_hash").notNull(),
+  passwordSalt: text("password_salt").notNull(),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+}, (table) => [uniqueIndex("supervisors_email_idx").on(table.email)]);
+
+export const supervisorSessions = pgTable("supervisor_sessions", {
+  id: text("id").primaryKey(),
+  supervisorId: text("supervisor_id").notNull().references(() => supervisors.id),
+  tokenHash: text("token_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true, mode: "string" }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "string" }),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+}, (table) => [uniqueIndex("supervisor_sessions_token_idx").on(table.tokenHash), index("supervisor_sessions_supervisor_idx").on(table.supervisorId)]);
+
 export const companies = pgTable("companies", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
