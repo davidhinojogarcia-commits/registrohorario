@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CarFront, Loader2, MapPin, Route } from "lucide-react";
+import { CarFront, Download, Loader2, MapPin, Route } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type Trip = {
@@ -21,10 +22,19 @@ function distance(meters: number) {
   return meters < 1000 ? `${meters} m` : `${(meters / 1000).toFixed(2)} km`;
 }
 
-function duration(startedAt: string, endedAt: string | null) {
+function durationMinutes(startedAt: string, endedAt: string | null) {
   const end = endedAt ? new Date(endedAt) : new Date();
-  const minutes = Math.max(0, Math.floor((end.getTime() - new Date(startedAt).getTime()) / 60_000));
+  return Math.max(0, Math.floor((end.getTime() - new Date(startedAt).getTime()) / 60_000));
+}
+
+function duration(startedAt: string, endedAt: string | null) {
+  const minutes = durationMinutes(startedAt, endedAt);
   return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, "0")} min`;
+}
+
+function csvCell(value: string | number | null) {
+  const text = value == null ? "" : String(value);
+  return `"${text.replaceAll('"', '""')}"`;
 }
 
 export function AdminTrips() {
@@ -43,8 +53,36 @@ export function AdminTrips() {
 
   const totalMeters = trips.reduce((sum, trip) => sum + trip.distance_meters, 0);
 
+  function exportCsv() {
+    if (!trips.length) return;
+    const rows = [
+      ["Trabajador", "Obra", "Inicio", "Fin", "Estado", "Distancia km", "Duración min", "Puntos GPS", "Motivo"],
+      ...trips.map((trip) => [
+        `${trip.first_name} ${trip.last_name}`,
+        trip.worksite_name,
+        new Date(trip.started_at).toLocaleString("es-ES"),
+        trip.ended_at ? new Date(trip.ended_at).toLocaleString("es-ES") : "",
+        trip.status === "active" ? "En curso" : trip.status === "completed" ? "Finalizado" : "Cancelado",
+        (trip.distance_meters / 1000).toFixed(3),
+        durationMinutes(trip.started_at, trip.ended_at),
+        trip.point_count,
+        trip.purpose,
+      ]),
+    ];
+    const csv = `\uFEFF${rows.map((row) => row.map((cell) => csvCell(cell)).join(";")).join("\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `trayectos-control-horario-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return <Card className="mt-5 border-slate-200 shadow-none dark:border-slate-800">
-    <CardHeader><CardTitle className="flex items-center gap-2 text-lg"><Route className="size-5" /> Trayectos</CardTitle><CardDescription>Desplazamientos laborales registrados durante los últimos 30 días.</CardDescription></CardHeader>
+    <CardHeader><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-lg"><Route className="size-5" /> Trayectos</CardTitle><CardDescription className="mt-1">Desplazamientos laborales registrados durante los últimos 30 días.</CardDescription></div><Button variant="outline" size="sm" onClick={exportCsv} disabled={!trips.length}><Download /> Exportar CSV</Button></div></CardHeader>
     <CardContent>
       {loading ? <div className="grid min-h-28 place-items-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : <>
         <div className="mb-4 grid grid-cols-2 gap-3"><div className="rounded-2xl border p-4"><p className="text-xs text-muted-foreground">Trayectos</p><p className="mt-1 text-2xl font-bold">{trips.length}</p></div><div className="rounded-2xl border p-4"><p className="text-xs text-muted-foreground">Distancia</p><p className="mt-1 text-2xl font-bold">{distance(totalMeters)}</p></div></div>
