@@ -17,6 +17,7 @@ type Worker = {
   event_type: "entry" | "pause" | "resume" | "exit" | null;
   occurred_at: string | null;
   state: WorkerState;
+  worked_seconds: number;
 };
 type Overview = {
   company: { id: string; name: string } | null;
@@ -30,6 +31,12 @@ const stateLabel: Record<WorkerState, string> = {
   finished: "Jornada finalizada",
   idle: "Sin fichar",
 };
+
+function formatWorked(seconds: number) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+}
 
 export function AdminDashboard({ displayName }: { displayName: string }) {
   const [setup, setSetup] = useState<Setup | null>(null);
@@ -89,8 +96,8 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[1.3fr_.7fr]">
         <section className="space-y-4">
-          <Card className="border-slate-200 shadow-none dark:border-slate-800"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5" /> Personal de hoy</CardTitle><CardDescription>Estado actual de cada trabajador. Se actualiza automáticamente cada minuto.</CardDescription></CardHeader><CardContent>
-            {overviewLoading && !overview ? <div className="grid min-h-40 place-items-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : overview?.workers.length ? <div className="space-y-2">{overview.workers.map((worker) => <div key={worker.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><span className={`size-3 shrink-0 rounded-full ${worker.state === "working" ? "bg-emerald-500" : worker.state === "paused" ? "bg-amber-400" : worker.state === "finished" ? "bg-sky-400" : "bg-slate-300"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-x-2"><p className="truncate font-semibold">{worker.first_name} {worker.last_name}</p><span className="text-xs text-muted-foreground">{worker.role}</span></div><div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{stateLabel[worker.state]}</span>{worker.worksite_name && <span className="flex items-center gap-1"><MapPin className="size-3" />{worker.worksite_name}</span>}{worker.occurred_at && <span>Último fichaje {new Date(worker.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>}</div></div></div>)}</div> : <div className="rounded-2xl border border-dashed p-6 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-medium">Aún no hay trabajadores</p><p className="mt-1 text-sm text-muted-foreground">Prepara el primer acceso para crear el entorno inicial.</p></div>}
+          <Card className="border-slate-200 shadow-none dark:border-slate-800"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5" /> Personal de hoy</CardTitle><CardDescription>Estado actual y tiempo trabajado acumulado. Se actualiza automáticamente cada minuto.</CardDescription></CardHeader><CardContent>
+            {overviewLoading && !overview ? <div className="grid min-h-40 place-items-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : overview?.workers.length ? <div className="space-y-2">{overview.workers.map((worker) => <div key={worker.id} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950"><span className={`size-3 shrink-0 rounded-full ${worker.state === "working" ? "bg-emerald-500" : worker.state === "paused" ? "bg-amber-400" : worker.state === "finished" ? "bg-sky-400" : "bg-slate-300"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="truncate font-semibold">{worker.first_name} {worker.last_name}</p><p className="text-xs text-muted-foreground">{worker.role}</p></div><div className="rounded-xl bg-slate-100 px-3 py-1.5 text-right dark:bg-slate-900"><p className="font-mono text-sm font-bold tabular-nums">{formatWorked(worker.worked_seconds)}</p><p className="text-[10px] uppercase tracking-wide text-muted-foreground">hoy</p></div></div><div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{stateLabel[worker.state]}</span>{worker.worksite_name && <span className="flex items-center gap-1"><MapPin className="size-3" />{worker.worksite_name}</span>}{worker.occurred_at && <span>Último fichaje {new Date(worker.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>}</div></div></div>)}</div> : <div className="rounded-2xl border border-dashed p-6 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-medium">Aún no hay trabajadores</p><p className="mt-1 text-sm text-muted-foreground">Prepara el primer acceso para crear el entorno inicial.</p></div>}
           </CardContent></Card>
         </section>
 
