@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Clock3, Coffee, HardHat, Loader2, MapPin, RefreshCw, Users } from "lucide-react";
+import { BarChart3, BriefcaseBusiness, Clock3, Coffee, HardHat, LogOut, MapPin, RefreshCw, Route, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,10 +40,15 @@ function formatMinutes(total: number) {
   return `${hours} h ${String(minutes).padStart(2, "0")} min`;
 }
 
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 export function AdminDashboard({ displayName }: { displayName: string }) {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [overviewLoading, setOverviewLoading] = useState(true);
   const [error, setError] = useState("");
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const loadOverview = useCallback(async () => {
     setOverviewLoading(true);
@@ -62,11 +67,17 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
 
   const activeNow = useMemo(() => (overview?.totals.working ?? 0) + (overview?.totals.paused ?? 0), [overview]);
 
-  return <main className="min-h-screen bg-slate-50 text-foreground dark:bg-slate-950">
-    <header className="border-b border-white/10 bg-[#102033] text-white"><div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6"><div className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f6b718] text-[#102033]"><HardHat className="size-5" /></span><div className="min-w-0"><p className="truncate font-bold leading-tight">Control de obra</p><p className="truncate text-xs text-slate-300">Hola, {displayName}</p></div></div><Button onClick={() => void loadOverview()} variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-white"><RefreshCw className={overviewLoading ? "animate-spin" : ""} /><span className="hidden sm:inline">Actualizar</span></Button></div></header>
+  async function logout() {
+    setLoggingOut(true);
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
+
+  return <main className="min-h-screen bg-slate-50 pb-24 text-foreground dark:bg-slate-950 sm:pb-8">
+    <header className="sticky top-0 z-30 border-b border-white/10 bg-[#102033] text-white shadow-sm"><div className="mx-auto flex min-h-16 max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6"><div className="flex min-w-0 items-center gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f6b718] text-[#102033]"><HardHat className="size-5" /></span><div className="min-w-0"><p className="truncate font-bold leading-tight">Control de obra</p><p className="truncate text-xs text-slate-300">Hola, {displayName}</p></div></div><div className="flex items-center gap-1"><Button onClick={() => void loadOverview()} variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-white"><RefreshCw className={overviewLoading ? "animate-spin" : ""} /><span className="hidden sm:inline">Actualizar</span></Button><Button onClick={() => void logout()} disabled={loggingOut} variant="ghost" size="sm" className="text-white hover:bg-white/10 hover:text-white"><LogOut /><span className="hidden sm:inline">Salir</span></Button></div></div></header>
 
     <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
-      <section className="rounded-[28px] bg-[#102033] p-5 text-white shadow-[0_24px_70px_rgba(15,32,51,.18)] sm:p-7">
+      <section id="resumen" className="scroll-mt-24 rounded-[28px] bg-[#102033] p-5 text-white shadow-[0_24px_70px_rgba(15,32,51,.18)] sm:p-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-sm text-slate-300">Resumen de hoy</p><h1 className="mt-1 text-3xl font-bold tracking-tight">{overview?.company?.name ?? "Configura tu empresa"}</h1><p className="mt-2 text-sm text-slate-300">{new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</p></div><Badge className="w-fit border border-emerald-400/20 bg-emerald-400/10 text-emerald-200">{activeNow} activos ahora</Badge></div>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
@@ -79,16 +90,22 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
       </section>
 
       <Card className="mt-5 border-slate-200 shadow-none dark:border-slate-800"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5" /> Personal de hoy</CardTitle><CardDescription>Estado, obra y tiempo trabajado acumulado. Se actualiza automáticamente cada minuto.</CardDescription></CardHeader><CardContent>
-        {overviewLoading && !overview ? <div className="grid min-h-40 place-items-center"><Loader2 className="animate-spin text-muted-foreground" /></div> : overview?.workers.length ? <div className="grid gap-2 lg:grid-cols-2">{overview.workers.map((worker) => <div key={worker.id} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"><div className="flex items-start gap-3"><span className={`mt-1 size-3 shrink-0 rounded-full ${worker.state === "working" ? "bg-emerald-500" : worker.state === "paused" ? "bg-amber-400" : worker.state === "finished" ? "bg-sky-400" : "bg-slate-300"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">{worker.first_name} {worker.last_name}</p><p className="text-xs text-muted-foreground">{worker.role}</p></div><p className="text-sm font-semibold">{formatMinutes(worker.worked_minutes ?? 0)}</p></div><div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{stateLabel[worker.state]}</span>{worker.worksite_name && <span className="flex items-center gap-1"><MapPin className="size-3" />{worker.worksite_name}</span>}{worker.occurred_at && <span>Último fichaje {new Date(worker.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>}</div></div></div></div>)}</div> : <div className="rounded-2xl border border-dashed p-6 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-medium">Aún no hay trabajadores activos</p><p className="mt-1 text-sm text-muted-foreground">Configura la empresa, crea una obra y añade el primer trabajador.</p></div>}
+        {overviewLoading && !overview ? <div className="grid min-h-40 place-items-center"><RefreshCw className="animate-spin text-muted-foreground" /></div> : overview?.workers.length ? <div className="grid gap-2 lg:grid-cols-2">{overview.workers.map((worker) => <div key={worker.id} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"><div className="flex items-start gap-3"><span className={`mt-1 size-3 shrink-0 rounded-full ${worker.state === "working" ? "bg-emerald-500" : worker.state === "paused" ? "bg-amber-400" : worker.state === "finished" ? "bg-sky-400" : "bg-slate-300"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">{worker.first_name} {worker.last_name}</p><p className="text-xs text-muted-foreground">{worker.role}</p></div><p className="text-sm font-semibold">{formatMinutes(worker.worked_minutes ?? 0)}</p></div><div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{stateLabel[worker.state]}</span>{worker.worksite_name && <span className="flex items-center gap-1"><MapPin className="size-3" />{worker.worksite_name}</span>}{worker.occurred_at && <span>Último fichaje {new Date(worker.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>}</div></div></div></div>)}</div> : <div className="rounded-2xl border border-dashed p-6 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-medium">Aún no hay trabajadores activos</p><p className="mt-1 text-sm text-muted-foreground">Configura la empresa, crea una obra y añade el primer trabajador.</p></div>}
       </CardContent></Card>
 
-      <AdminManagement onChanged={() => void loadOverview()} />
-      <AdminReports />
-      <AdminTrips />
+      <div id="gestion" className="scroll-mt-24"><AdminManagement onChanged={() => void loadOverview()} /></div>
+      <div id="informes" className="scroll-mt-24"><AdminReports /></div>
+      <div id="trayectos" className="scroll-mt-24"><AdminTrips /></div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Clock3 className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Hora del servidor</p><p className="mt-1 text-xs text-muted-foreground">Los fichajes no dependen de la hora configurada en el móvil.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Coffee className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Pausas separadas</p><p className="mt-1 text-xs text-muted-foreground">El tiempo trabajado excluye las pausas registradas.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><MapPin className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">GPS controlado</p><p className="mt-1 text-xs text-muted-foreground">Los fichajes son puntuales; los trayectos solo registran ubicación cuando se activan expresamente.</p></div></div>
 
       {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
     </div>
+
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),.5rem)] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:hidden">
+      <div className="mx-auto grid max-w-xl grid-cols-4 gap-1">
+        {[{ id: "resumen", label: "Resumen", icon: BarChart3 }, { id: "gestion", label: "Gestión", icon: BriefcaseBusiness }, { id: "informes", label: "Informes", icon: Clock3 }, { id: "trayectos", label: "Trayectos", icon: Route }].map((item) => <button key={item.id} type="button" onClick={() => scrollTo(item.id)} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium text-slate-600 active:bg-slate-100 dark:text-slate-300 dark:active:bg-slate-800"><item.icon className="size-5" />{item.label}</button>)}
+      </div>
+    </nav>
   </main>;
 }
