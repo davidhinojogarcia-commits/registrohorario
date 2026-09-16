@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarDays, ChevronDown, ChevronUp, Clock3, Loader2, PauseCircle, RefreshCw } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronUp, Clock3, Download, Loader2, PauseCircle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,7 @@ function iso(date: Date) { return date.toISOString().slice(0, 10); }
 function formatMinutes(total: number) { const h = Math.floor(total / 60); const m = total % 60; return `${h} h ${String(m).padStart(2, "0")} min`; }
 function range(days: number) { const to = new Date(); const from = new Date(to); from.setDate(from.getDate() - (days - 1)); return { from: iso(from), to: iso(to) }; }
 function monthRange() { const now = new Date(); return { from: iso(new Date(now.getFullYear(), now.getMonth(), 1)), to: iso(now) }; }
+function csvCell(value: string | number | null) { const text = value == null ? "" : String(value); return `"${text.replaceAll('"', '""')}"`; }
 
 export function AdminReports() {
   const initial = range(14);
@@ -80,11 +81,39 @@ export function AdminReports() {
 
   const selectedWorker = useMemo(() => workers.find((worker) => worker.id === workerId), [workers, workerId]);
 
+  function exportCsv() {
+    if (!report) return;
+    const rows = [
+      ["Fecha", "Trabajador", "Puesto", "Horas trabajadas", "Minutos pausa", "Primera entrada", "Última salida", "Obras", "Fichajes"],
+      ...report.days.map((day) => [
+        day.date,
+        `${report.worker.first_name} ${report.worker.last_name}`,
+        report.worker.role,
+        (day.workedMinutes / 60).toFixed(2),
+        day.pauseMinutes,
+        day.firstEntry ? new Date(day.firstEntry).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "",
+        day.lastExit ? new Date(day.lastExit).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) : "",
+        day.worksiteNames.join(" | "),
+        day.events.map((event) => `${eventLabel[event.event_type]} ${new Date(event.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`).join(" | "),
+      ]),
+    ];
+    const csv = `\uFEFF${rows.map((row) => row.map((cell) => csvCell(cell)).join(";")).join("\n")}`;
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const safeName = `${report.worker.first_name}-${report.worker.last_name}`.toLowerCase().replaceAll(/[^a-z0-9áéíóúñ-]+/gi, "-");
+    anchor.href = url;
+    anchor.download = `control-horario-${safeName}-${report.from}-${report.to}.csv`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
   return <section className="mt-5">
     <Card className="border-slate-200 shadow-none dark:border-slate-800">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg"><CalendarDays className="size-5" /> Informes e histórico</CardTitle>
-        <CardDescription>Consulta horas trabajadas, pausas y fichajes originales por trabajador y periodo.</CardDescription>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><CardTitle className="flex items-center gap-2 text-lg"><CalendarDays className="size-5" /> Informes e histórico</CardTitle><CardDescription className="mt-1">Consulta horas trabajadas, pausas y fichajes originales por trabajador y periodo.</CardDescription></div><Button variant="outline" size="sm" onClick={exportCsv} disabled={!report || report.days.length === 0}><Download /> Exportar CSV</Button></div>
       </CardHeader>
       <CardContent className="space-y-5">
         <div className="grid gap-3 lg:grid-cols-[1fr_auto]">
