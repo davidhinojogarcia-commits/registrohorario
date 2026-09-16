@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminManagement } from "@/app/admin-management";
 import { AdminReports } from "@/app/admin-reports";
+import { AdminTrips } from "@/app/admin-trips";
 
 type WorkerState = "working" | "paused" | "finished" | "idle";
 type Worker = {
@@ -83,8 +84,9 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
 
       <AdminManagement onChanged={() => void loadOverview()} />
       <AdminReports />
+      <AdminTrips />
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Clock3 className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Hora del servidor</p><p className="mt-1 text-xs text-muted-foreground">Los fichajes no dependen de la hora configurada en el móvil.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Coffee className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Pausas separadas</p><p className="mt-1 text-xs text-muted-foreground">El tiempo trabajado excluye las pausas registradas.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><MapPin className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">GPS puntual</p><p className="mt-1 text-xs text-muted-foreground">Solo se solicita al confirmar un fichaje.</p></div></div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Clock3 className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Hora del servidor</p><p className="mt-1 text-xs text-muted-foreground">Los fichajes no dependen de la hora configurada en el móvil.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Coffee className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Pausas separadas</p><p className="mt-1 text-xs text-muted-foreground">El tiempo trabajado excluye las pausas registradas.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><MapPin className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">GPS controlado</p><p className="mt-1 text-xs text-muted-foreground">Los fichajes son puntuales; los trayectos solo registran ubicación cuando se activan expresamente.</p></div></div>
 
       {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
     </div>
