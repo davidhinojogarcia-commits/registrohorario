@@ -68,8 +68,14 @@ export async function GET() {
     db.prepare(`
       SELECT w.id, w.first_name, w.last_name, ws.name AS worksite_name
       FROM workers w
-      LEFT JOIN assignments a ON a.worker_id = w.id AND a.active = true
-      LEFT JOIN worksites ws ON ws.id = a.worksite_id
+      LEFT JOIN LATERAL (
+        SELECT a.worksite_id
+        FROM assignments a
+        WHERE a.worker_id = w.id AND a.company_id = w.company_id AND a.active = true
+        ORDER BY a.starts_on DESC
+        LIMIT 1
+      ) current_assignment ON true
+      LEFT JOIN worksites ws ON ws.id = current_assignment.worksite_id
       WHERE w.company_id = ? AND w.active = true
       ORDER BY w.first_name, w.last_name
     `).bind(company.id).all<WorkerRow>(),
