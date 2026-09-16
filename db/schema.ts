@@ -103,6 +103,22 @@ export const clockEvents = pgTable("clock_events", {
   integrityHash: text("integrity_hash").notNull(),
 }, (table) => [uniqueIndex("clock_events_idempotency_idx").on(table.workerId, table.idempotencyKey), index("clock_events_worker_date_idx").on(table.workerId, table.occurredAt), index("clock_events_company_idx").on(table.companyId)]);
 
+export const clockAdjustments = pgTable("clock_adjustments", {
+  id: text("id").primaryKey(),
+  companyId: text("company_id").notNull().references(() => companies.id),
+  workerId: text("worker_id").notNull().references(() => workers.id),
+  worksiteId: text("worksite_id").notNull().references(() => worksites.id),
+  originalEventId: text("original_event_id").references(() => clockEvents.id),
+  eventType: text("event_type", { enum: ["entry", "pause", "resume", "exit"] }).notNull(),
+  effectiveAt: timestamp("effective_at", { withTimezone: true, mode: "string" }).notNull(),
+  reason: text("reason").notNull(),
+  adjustmentType: text("adjustment_type", { enum: ["correction", "missing_event"] }).notNull(),
+  createdBySupervisorId: text("created_by_supervisor_id").notNull().references(() => supervisors.id),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true, mode: "string" }),
+  revokedReason: text("revoked_reason"),
+}, (table) => [index("clock_adjustments_worker_date_idx").on(table.workerId, table.effectiveAt), index("clock_adjustments_company_idx").on(table.companyId), index("clock_adjustments_original_event_idx").on(table.originalEventId)]);
+
 export const trips = pgTable("trips", {
   id: text("id").primaryKey(),
   companyId: text("company_id").notNull().references(() => companies.id),
@@ -113,20 +129,18 @@ export const trips = pgTable("trips", {
   status: text("status", { enum: ["active", "completed", "cancelled"] }).notNull().default("active"),
   distanceMeters: integer("distance_meters").notNull().default(0),
   pointCount: integer("point_count").notNull().default(0),
-  purpose: text("purpose").notNull().default("Desplazamiento de trabajo"),
+  purpose: text("purpose").notNull().default("Desplazamiento laboral"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: "string" }).notNull(),
-}, (table) => [index("trips_worker_idx").on(table.workerId, table.startedAt), index("trips_company_idx").on(table.companyId, table.startedAt)]);
+}, (table) => [index("trips_worker_started_idx").on(table.workerId, table.startedAt), index("trips_company_idx").on(table.companyId)]);
 
 export const tripPoints = pgTable("trip_points", {
   id: text("id").primaryKey(),
   tripId: text("trip_id").notNull().references(() => trips.id),
-  capturedAt: timestamp("captured_at", { withTimezone: true, mode: "string" }).notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true, mode: "string" }).notNull(),
   latitude: text("latitude").notNull(),
   longitude: text("longitude").notNull(),
   accuracy: text("accuracy"),
-  speed: text("speed"),
-  heading: text("heading"),
-}, (table) => [index("trip_points_trip_idx").on(table.tripId, table.capturedAt)]);
+}, (table) => [index("trip_points_trip_date_idx").on(table.tripId, table.recordedAt)]);
 
 export const auditLog = pgTable("audit_log", {
   id: text("id").primaryKey(),
