@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, BriefcaseBusiness, Clock3, Coffee, HardHat, LogOut, MapPin, RefreshCw, Route, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, BriefcaseBusiness, Clock3, Coffee, HardHat, LogOut, MapPin, RefreshCw, Route, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminManagement } from "@/app/admin-management";
 import { AdminReports } from "@/app/admin-reports";
 import { AdminTrips } from "@/app/admin-trips";
+import { AdminAdjustments } from "@/app/admin-adjustments";
 
 type WorkerState = "working" | "paused" | "finished" | "idle";
 type Worker = {
@@ -95,6 +96,7 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
 
       <div id="gestion" className="scroll-mt-24"><AdminManagement onChanged={() => void loadOverview()} /></div>
       <div id="informes" className="scroll-mt-24"><AdminReports /></div>
+      <AdminAdjustments />
       <div id="trayectos" className="scroll-mt-24"><AdminTrips /></div>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3"><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Clock3 className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Hora del servidor</p><p className="mt-1 text-xs text-muted-foreground">Los fichajes no dependen de la hora configurada en el móvil.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><Coffee className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">Pausas separadas</p><p className="mt-1 text-xs text-muted-foreground">El tiempo trabajado excluye las pausas registradas.</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm dark:border-slate-800 dark:bg-slate-950"><MapPin className="size-4 text-muted-foreground" /><p className="mt-2 font-medium">GPS controlado</p><p className="mt-1 text-xs text-muted-foreground">Los fichajes son puntuales; los trayectos solo registran ubicación cuando se activan expresamente.</p></div></div>
@@ -103,8 +105,8 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
     </div>
 
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[max(env(safe-area-inset-bottom),.5rem)] pt-2 shadow-[0_-8px_30px_rgba(15,23,42,.08)] backdrop-blur dark:border-slate-800 dark:bg-slate-950/95 sm:hidden">
-      <div className="mx-auto grid max-w-xl grid-cols-4 gap-1">
-        {[{ id: "resumen", label: "Resumen", icon: BarChart3 }, { id: "gestion", label: "Gestión", icon: BriefcaseBusiness }, { id: "informes", label: "Informes", icon: Clock3 }, { id: "trayectos", label: "Trayectos", icon: Route }].map((item) => <button key={item.id} type="button" onClick={() => scrollTo(item.id)} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-medium text-slate-600 active:bg-slate-100 dark:text-slate-300 dark:active:bg-slate-800"><item.icon className="size-5" />{item.label}</button>)}
+      <div className="mx-auto grid max-w-xl grid-cols-5 gap-1">
+        {[{ id: "resumen", label: "Resumen", icon: BarChart3 }, { id: "gestion", label: "Gestión", icon: BriefcaseBusiness }, { id: "informes", label: "Informes", icon: Clock3 }, { id: "incidencias", label: "Incid.", icon: AlertTriangle }, { id: "trayectos", label: "Trayectos", icon: Route }].map((item) => <button key={item.id} type="button" onClick={() => scrollTo(item.id)} className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-medium text-slate-600 active:bg-slate-100 dark:text-slate-300 dark:active:bg-slate-800"><item.icon className="size-5" />{item.label}</button>)}
       </div>
     </nav>
   </main>;
