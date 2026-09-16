@@ -15,19 +15,19 @@ type WorkerRow = {
 };
 type EventRow = { worker_id: string; event_type: EventType; occurred_at: string };
 
-function workedSeconds(events: EventRow[]) {
-  let total = 0;
+function workedMinutes(events: EventRow[]) {
+  let totalMs = 0;
   let startedAt: number | null = null;
   for (const event of events) {
     const timestamp = new Date(event.occurred_at).getTime();
     if (event.event_type === "entry" || event.event_type === "resume") startedAt = timestamp;
     if ((event.event_type === "pause" || event.event_type === "exit") && startedAt !== null) {
-      total += Math.max(0, Math.floor((timestamp - startedAt) / 1000));
+      totalMs += Math.max(0, timestamp - startedAt);
       startedAt = null;
     }
   }
-  if (startedAt !== null) total += Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-  return total;
+  if (startedAt !== null) totalMs += Math.max(0, Date.now() - startedAt);
+  return Math.floor(totalMs / 60_000);
 }
 
 export async function GET() {
@@ -60,7 +60,7 @@ export async function GET() {
         SELECT ce.event_type, ce.occurred_at
         FROM clock_events ce
         WHERE ce.worker_id = w.id
-          AND ce.occurred_at::date = CURRENT_DATE
+          AND (ce.occurred_at AT TIME ZONE 'Europe/Madrid')::date = (NOW() AT TIME ZONE 'Europe/Madrid')::date
         ORDER BY ce.occurred_at DESC
         LIMIT 1
       ) last_event ON true
@@ -70,7 +70,8 @@ export async function GET() {
     db.prepare(`
       SELECT worker_id, event_type, occurred_at
       FROM clock_events
-      WHERE company_id = ? AND occurred_at::date = CURRENT_DATE
+      WHERE company_id = ?
+        AND (occurred_at AT TIME ZONE 'Europe/Madrid')::date = (NOW() AT TIME ZONE 'Europe/Madrid')::date
       ORDER BY worker_id, occurred_at ASC
     `).bind(company.id).all<EventRow>(),
   ]);
@@ -90,7 +91,7 @@ export async function GET() {
         : worker.event_type === "exit"
           ? "finished"
           : "idle";
-    return { ...worker, state, worked_seconds: workedSeconds(eventsByWorker.get(worker.id) ?? []) };
+    return { ...worker, state, worked_minutes: workedMinutes(eventsByWorker.get(worker.id) ?? []) };
   });
 
   const totals = mapped.reduce((acc, worker) => {
