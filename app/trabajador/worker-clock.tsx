@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { InstallAppButton } from "@/app/install-app-button";
+import { TripTracker } from "@/app/trabajador/trip-tracker";
 
 type EventType = "entry" | "pause" | "resume" | "exit";
 type ClockEvent = { id: string; event_type: EventType; occurred_at: string; location_status: string; integrity_hash: string };
@@ -151,12 +152,14 @@ export function WorkerClock() {
         {error && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{error}</p>}
       </section>
 
+      <TripTracker />
+
       <section className="mt-5 overflow-hidden rounded-[24px] bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-800">
         <button type="button" onClick={() => setHistoryOpen((value) => !value)} className="flex w-full items-center justify-between px-5 py-4 text-left"><div><p className="font-semibold">Registro de hoy</p><p className="mt-0.5 text-xs text-muted-foreground">Consulta las horas que has fichado</p></div><ChevronDown className={`size-5 text-muted-foreground transition-transform ${historyOpen ? "rotate-180" : ""}`} /></button>
         {historyOpen && <div className="border-t px-5 pb-2 dark:border-slate-800">{data.events.length === 0 ? <p className="py-5 text-center text-sm text-muted-foreground">Aún no hay marcajes.</p> : data.events.map((event) => <div key={event.id} className="flex items-center justify-between border-b py-3.5 last:border-0 dark:border-slate-800"><div><p className="text-sm font-medium">{labels[event.event_type]}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="size-3" /> {event.location_status === "captured" ? "Ubicación registrada" : "Sin ubicación"}</p></div><time className="font-mono text-sm font-semibold tabular-nums">{new Date(event.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</time></div>)}</div>}
       </section>
 
-      <p className="mx-auto mt-5 max-w-sm text-center text-xs leading-relaxed text-slate-500">La ubicación solo se solicita al confirmar un fichaje. No se realiza seguimiento continuo del trabajador.</p>
+      <p className="mx-auto mt-5 max-w-sm text-center text-xs leading-relaxed text-slate-500">Los fichajes solo solicitan GPS al confirmar. Los trayectos registran ubicación únicamente cuando el trabajador activa expresamente “Iniciar trayecto”.</p>
     </div>
 
     <Dialog open={pending !== null} onOpenChange={(open) => !open && setPending(null)}><DialogContent className="rounded-3xl sm:max-w-md">{pending && <><DialogHeader><div className="mb-2 grid size-12 place-items-center rounded-2xl bg-[#f6b718]/20 text-[#9a6800]"><ShieldCheck className="size-6" /></div><DialogTitle>Confirmar {labels[pending].toLowerCase()}</DialogTitle><DialogDescription>La hora válida será la del servidor. Intentaremos registrar tu ubicación únicamente en este momento.</DialogDescription></DialogHeader><div className="rounded-2xl bg-slate-50 p-4 text-sm dark:bg-slate-900"><div className="flex justify-between gap-4"><span className="text-muted-foreground">Obra</span><strong className="text-right">{data.session.worksite_name}</strong></div><div className="mt-2 flex justify-between gap-4"><span className="text-muted-foreground">GPS</span><strong>Solo en el fichaje</strong></div></div><DialogFooter><Button variant="outline" onClick={() => setPending(null)}>Cancelar</Button><Button onClick={confirm} disabled={saving} className="bg-[#102033] text-white hover:bg-[#1a334f]">{saving ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Confirmar fichaje</Button></DialogFooter></>}</DialogContent></Dialog>
