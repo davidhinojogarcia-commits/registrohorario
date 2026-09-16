@@ -9,6 +9,7 @@ import { AdminManagement } from "@/app/admin-management";
 import { AdminReports } from "@/app/admin-reports";
 import { AdminTrips } from "@/app/admin-trips";
 import { AdminAdjustments } from "@/app/admin-adjustments";
+import { AdminAlerts } from "@/app/admin-alerts";
 
 type WorkerState = "working" | "paused" | "finished" | "idle";
 type Worker = {
@@ -89,6 +90,8 @@ export function AdminDashboard({ displayName }: { displayName: string }) {
           ].map(([label, value, dot]) => <div key={String(label)} className="rounded-2xl border border-white/10 bg-white/[.06] p-4"><div className="flex items-center gap-2 text-xs text-slate-300"><span className={`size-2 rounded-full ${dot}`} />{label}</div><p className="mt-2 text-3xl font-bold">{value}</p></div>)}
         </div>
       </section>
+
+      <AdminAlerts />
 
       <Card className="mt-5 border-slate-200 shadow-none dark:border-slate-800"><CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-lg"><Users className="size-5" /> Personal de hoy</CardTitle><CardDescription>Estado, obra y tiempo trabajado acumulado. Se actualiza automáticamente cada minuto.</CardDescription></CardHeader><CardContent>
         {overviewLoading && !overview ? <div className="grid min-h-40 place-items-center"><RefreshCw className="animate-spin text-muted-foreground" /></div> : overview?.workers.length ? <div className="grid gap-2 lg:grid-cols-2">{overview.workers.map((worker) => <div key={worker.id} className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950"><div className="flex items-start gap-3"><span className={`mt-1 size-3 shrink-0 rounded-full ${worker.state === "working" ? "bg-emerald-500" : worker.state === "paused" ? "bg-amber-400" : worker.state === "finished" ? "bg-sky-400" : "bg-slate-300"}`} /><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">{worker.first_name} {worker.last_name}</p><p className="text-xs text-muted-foreground">{worker.role}</p></div><p className="text-sm font-semibold">{formatMinutes(worker.worked_minutes ?? 0)}</p></div><div className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground"><span>{stateLabel[worker.state]}</span>{worker.worksite_name && <span className="flex items-center gap-1"><MapPin className="size-3" />{worker.worksite_name}</span>}{worker.occurred_at && <span>Último fichaje {new Date(worker.occurred_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>}</div></div></div></div>)}</div> : <div className="rounded-2xl border border-dashed p-6 text-center"><Users className="mx-auto size-8 text-muted-foreground" /><p className="mt-3 font-medium">Aún no hay trabajadores activos</p><p className="mt-1 text-sm text-muted-foreground">Configura la empresa, crea una obra y añade el primer trabajador.</p></div>}
