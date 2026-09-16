@@ -9,6 +9,12 @@ type EventRow = {
   occurred_at: string;
   worksite_name: string | null;
   location_status: string;
+  adjusted: boolean;
+  adjustment_id: string | null;
+  adjustment_reason: string | null;
+  original_occurred_at: string | null;
+  original_event_type: EventType | null;
+  synthetic: boolean;
 };
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -45,12 +51,13 @@ function summarize(events: EventRow[], rangeTo: string) {
   const now = Date.now();
   const today = localDay(new Date().toISOString());
   const days = [...byDay.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([date, dayEvents]) => {
+    const ordered = [...dayEvents].sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
     let workedMs = 0;
     let pauseMs = 0;
     let workingSince: number | null = null;
     let pausedSince: number | null = null;
 
-    for (const event of dayEvents) {
+    for (const event of ordered) {
       const at = new Date(event.occurred_at).getTime();
       if (event.event_type === "entry" || event.event_type === "resume") {
         if (pausedSince !== null) {
@@ -81,10 +88,11 @@ function summarize(events: EventRow[], rangeTo: string) {
       date,
       workedMinutes: Math.floor(workedMs / 60_000),
       pauseMinutes: Math.floor(pauseMs / 60_000),
-      firstEntry: dayEvents.find((event) => event.event_type === "entry")?.occurred_at ?? null,
-      lastExit: [...dayEvents].reverse().find((event) => event.event_type === "exit")?.occurred_at ?? null,
-      worksiteNames: [...new Set(dayEvents.map((event) => event.worksite_name).filter(Boolean))],
-      events: dayEvents,
+      firstEntry: ordered.find((event) => event.event_type === "entry")?.occurred_at ?? null,
+      lastExit: [...ordered].reverse().find((event) => event.event_type === "exit")?.occurred_at ?? null,
+      worksiteNames: [...new Set(ordered.map((event) => event.worksite_name).filter(Boolean))],
+      adjustedCount: ordered.filter((event) => event.adjusted).length,
+      events: ordered,
     };
   });
 
@@ -95,6 +103,7 @@ function summarize(events: EventRow[], rangeTo: string) {
       pauseMinutes: days.reduce((sum, day) => sum + day.pauseMinutes, 0),
       daysWithRecords: days.length,
       eventCount: events.length,
+      adjustedCount: events.filter((event) => event.adjusted).length,
     },
   };
 }
@@ -134,13 +143,51 @@ export async function GET(request: Request) {
   }
 
   const events = await db.prepare(`
-    SELECT ce.id, ce.event_type, ce.occurred_at, ce.location_status, ws.name AS worksite_name
-    FROM clock_events ce
-    LEFT JOIN worksites ws ON ws.id = ce.worksite_id
-    WHERE ce.worker_id = ? AND ce.company_id = ?
-      AND (ce.occurred_at AT TIME ZONE 'Europe/Madrid')::date BETWEEN ?::date AND ?::date
-    ORDER BY ce.occurred_at ASC
-  `).bind(worker.id, company.id, from, to).all<EventRow>();
+    WITH corrected_originals AS (
+      SELECT
+        ce.id,
+        COALESCE(ca.event_type, ce.event_type) AS event_type,
+        COALESCE(ca.effective_at, ce.occurred_at) AS occurred_at,
+        COALESCE(cws.name, ws.name) AS worksite_name,
+        ce.location_status,
+        (ca.id IS NOT NULL) AS adjusted,
+        ca.id AS adjustment_id,
+        ca.reason AS adjustment_reason,
+        CASE WHEN ca.id IS NOT NULL THEN ce.occurred_at ELSE NULL END AS original_occurred_at,
+        CASE WHEN ca.id IS NOT NULL THEN ce.event_type ELSE NULL END AS original_event_type,
+        false AS synthetic
+      FROM clock_events ce
+      LEFT JOIN worksites ws ON ws.id = ce.worksite_id
+      LEFT JOIN clock_adjustments ca ON ca.original_event_id = ce.id AND ca.company_id = ce.company_id AND ca.revoked_at IS NULL
+      LEFT JOIN worksites cws ON cws.id = ca.worksite_id
+      WHERE ce.worker_id = ? AND ce.company_id = ?
+    ),
+    missing_events AS (
+      SELECT
+        ca.id,
+        ca.event_type,
+        ca.effective_at AS occurred_at,
+        ws.name AS worksite_name,
+        'adjusted'::text AS location_status,
+        true AS adjusted,
+        ca.id AS adjustment_id,
+        ca.reason AS adjustment_reason,
+        NULL::timestamptz AS original_occurred_at,
+        NULL::text AS original_event_type,
+        true AS synthetic
+      FROM clock_adjustments ca
+      JOIN worksites ws ON ws.id = ca.worksite_id
+      WHERE ca.worker_id = ? AND ca.company_id = ?
+        AND ca.original_event_id IS NULL AND ca.revoked_at IS NULL
+    )
+    SELECT * FROM (
+      SELECT * FROM corrected_originals
+      UNION ALL
+      SELECT * FROM missing_events
+    ) effective_events
+    WHERE (occurred_at AT TIME ZONE 'Europe/Madrid')::date BETWEEN ?::date AND ?::date
+    ORDER BY occurred_at ASC
+  `).bind(worker.id, company.id, worker.id, company.id, from, to).all<EventRow>();
 
   const summary = summarize(events.results, to);
   return NextResponse.json({
