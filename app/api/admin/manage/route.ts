@@ -115,11 +115,13 @@ export async function POST(request: Request) {
       const worksite = await db.prepare("SELECT id FROM worksites WHERE id = ? AND company_id = ? AND active = true").bind(worksiteId, company.id).first();
       if (!worksite) return NextResponse.json({ error: "La obra seleccionada no es válida." }, { status: 400 });
     }
+    const currentAssignment = await db.prepare("SELECT worksite_id FROM assignments WHERE worker_id = ? AND company_id = ? AND active = true ORDER BY starts_on DESC LIMIT 1")
+      .bind(id, company.id).first<{ worksite_id: string }>();
     const statements = [
       db.prepare("UPDATE workers SET first_name = ?, last_name = ?, role = ?, active = ? WHERE id = ? AND company_id = ?")
         .bind(firstName, lastName, role, active, id, company.id),
     ];
-    if (worksiteId) {
+    if (worksiteId && currentAssignment?.worksite_id !== worksiteId) {
       statements.push(db.prepare("UPDATE assignments SET active = false, ends_on = ? WHERE worker_id = ? AND company_id = ? AND active = true")
         .bind(now.slice(0, 10), id, company.id));
       statements.push(db.prepare("INSERT INTO assignments (id, company_id, worker_id, worksite_id, starts_on, active) VALUES (?, ?, ?, ?, ?, true)")
