@@ -33,8 +33,7 @@ const eslintConfig = defineConfig([
     ],
     rules: {
       // These client components intentionally hydrate remote API state from effects.
-      // The updates happen after async fetch/geolocation callbacks rather than as
-      // render-derived state, so the React 19 effect warning is not applicable here.
+      // Updates occur after asynchronous fetch/geolocation work, not as render-derived state.
       "react-hooks/set-state-in-effect": "off",
       // AdminReports intentionally reuses its async loader after selecting the first worker.
       "react-hooks/immutability": "off",
