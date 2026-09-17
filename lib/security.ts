@@ -13,20 +13,35 @@ export async function sha256(value: string) {
   return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
 }
 
-export async function hashPin(pin: string, salt = randomToken(16)) {
-  const material = await crypto.subtle.importKey("raw", encoder.encode(pin), "PBKDF2", false, ["deriveBits"]);
+async function hashSecret(value: string, salt: string, iterations: number) {
+  const material = await crypto.subtle.importKey("raw", encoder.encode(value), "PBKDF2", false, ["deriveBits"]);
   const derived = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", hash: "SHA-256", salt: encoder.encode(salt), iterations: 120_000 },
+    { name: "PBKDF2", hash: "SHA-256", salt: encoder.encode(salt), iterations },
     material,
     256,
   );
-  return { salt, hash: toHex(derived) };
+  return toHex(derived);
+}
+
+function timingSafeEqual(left: string, right: string) {
+  if (left.length !== right.length) return false;
+  let difference = 0;
+  for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
+  return difference === 0;
+}
+
+export async function hashPin(pin: string, salt = randomToken(16)) {
+  return { salt, hash: await hashSecret(pin, salt, 120_000) };
 }
 
 export async function verifyPin(pin: string, salt: string, expectedHash: string) {
-  const { hash } = await hashPin(pin, salt);
-  if (hash.length !== expectedHash.length) return false;
-  let difference = 0;
-  for (let index = 0; index < hash.length; index += 1) difference |= hash.charCodeAt(index) ^ expectedHash.charCodeAt(index);
-  return difference === 0;
+  return timingSafeEqual(await hashSecret(pin, salt, 120_000), expectedHash);
+}
+
+export async function hashPassword(password: string, salt = randomToken(16)) {
+  return { salt, hash: await hashSecret(password, salt, 240_000) };
+}
+
+export async function verifyPassword(password: string, salt: string, expectedHash: string) {
+  return timingSafeEqual(await hashSecret(password, salt, 240_000), expectedHash);
 }

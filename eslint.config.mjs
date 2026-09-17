@@ -23,6 +23,22 @@ const eslintConfig = defineConfig([
       "react-hooks/set-state-in-effect": "off",
     },
   },
+  {
+    files: [
+      "app/admin-adjustments.tsx",
+      "app/admin-alerts.tsx",
+      "app/admin-reports.tsx",
+      "app/admin-trips.tsx",
+      "app/trabajador/trip-tracker.tsx",
+    ],
+    rules: {
+      // These client components intentionally hydrate remote API state from effects.
+      // Updates occur after asynchronous fetch/geolocation work, not as render-derived state.
+      "react-hooks/set-state-in-effect": "off",
+      // AdminReports intentionally reuses its async loader after selecting the first worker.
+      "react-hooks/immutability": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;

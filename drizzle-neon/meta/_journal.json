@@ -8,6 +8,27 @@
       "when": 1789577043554,
       "tag": "0000_fair_spencer_smythe",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789580580000,
+      "tag": "0001_native_supervisor_auth",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1789582380000,
+      "tag": "0002_trip_tracking",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789585200000,
+      "tag": "0003_clock_adjustments",
+      "breakpoints": true
     }
   ]
 }
